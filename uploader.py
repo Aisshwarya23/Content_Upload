@@ -282,42 +282,74 @@ def run_uploader(questions: List[Question], config: dict, credentials: dict):
             
             course_loc = page.get_by_text(course, exact=True).first
             try:
-                course_loc.click(timeout=5000, force=True)
+                course_loc.scroll_into_view_if_needed()
+                course_loc.click(timeout=5000)
             except Exception:
-                print(f"\n❌ ERROR: Could not find Course '{course}'.")
-                print("The course may have been renamed, deleted, or its visibility restricted prior to this upload batch.")
-                with open(log_file, "a", encoding="utf-8", newline="") as f:
-                    writer = csv.writer(f)
-                    for q in questions_to_upload[chunk_start:]:
-                        writer.writerow([current_docx_name, q.absolute_index, "failed", time.strftime("%Y-%m-%d %H:%M:%S"), f"Course '{course}' missing"])
-                browser.close()
-                return
+                try:
+                    course_loc.click(timeout=3000, force=True)
+                except Exception:
+                    print(f"\n❌ ERROR: Could not find Course '{course}'.")
+                    print("The course may have been renamed, deleted, or its visibility restricted prior to this upload batch.")
+                    with open(log_file, "a", encoding="utf-8", newline="") as f:
+                        writer = csv.writer(f)
+                        for q in questions_to_upload[chunk_start:]:
+                            writer.writerow([current_docx_name, q.absolute_index, "failed", time.strftime("%Y-%m-%d %H:%M:%S"), f"Course '{course}' missing"])
+                    browser.close()
+                    return
             
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(1000)
         
             print(f"Selecting Module: {module}")
             module_loc = page.get_by_text(module, exact=True).first
             try:
-                module_loc.click(timeout=5000, force=True)
+                module_loc.scroll_into_view_if_needed()
+                module_loc.click(timeout=5000)
             except Exception:
-                print(f"\n[ERROR] Could not find Module '{module}'.")
-                print("The module may have been renamed, deleted, or its visibility restricted prior to this upload batch.")
-                with open(log_file, "a", encoding="utf-8", newline="") as f:
-                    writer = csv.writer(f)
-                    for q in questions_to_upload[chunk_start:]:
-                        writer.writerow([current_docx_name, q.absolute_index, "failed", time.strftime("%Y-%m-%d %H:%M:%S"), f"Module '{module}' missing"])
-                browser.close()
-                return
+                try:
+                    module_loc.click(timeout=3000, force=True)
+                except Exception:
+                    print(f"\n[ERROR] Could not find Module '{module}'.")
+                    print("The module may have been renamed, deleted, or its visibility restricted prior to this upload batch.")
+                    with open(log_file, "a", encoding="utf-8", newline="") as f:
+                        writer = csv.writer(f)
+                        for q in questions_to_upload[chunk_start:]:
+                            writer.writerow([current_docx_name, q.absolute_index, "failed", time.strftime("%Y-%m-%d %H:%M:%S"), f"Module '{module}' missing"])
+                    browser.close()
+                    return
             
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(1500)
         
             # 5. Click the "Project Questions" card
             print("Clicking 'Project Questions' card...")
-            page.locator('text=Project Questions').first.click(force=True)
-            page.wait_for_timeout(1000)
-            # Wait for the configuration form to appear
-            expect(page.get_by_text("Project Questions Configuration")).to_be_visible(timeout=10000)
-            # This is a single-page app, so background requests may prevent networkidle indefinitely.
+            try:
+                # If configuration is already visible, the card is already active
+                if not page.get_by_text("Project Questions Configuration").is_visible():
+                    # Target the outer card container div.cursor-pointer containing 'Project Questions'
+                    card = page.locator('div.cursor-pointer').filter(has_text="Project Questions").first
+                    if card.count() == 0:
+                        card = page.locator('text=Project Questions').first
+                    
+                    card.wait_for(state="visible", timeout=10000)
+                    card.scroll_into_view_if_needed()
+                    card.click(timeout=5000)
+                    page.wait_for_timeout(1000)
+                
+                # Wait for configuration form to appear
+                expect(page.get_by_text("Project Questions Configuration")).to_be_visible(timeout=10000)
+            except Exception as e:
+                Path("screenshots").mkdir(exist_ok=True)
+                dt_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+                err_screenshot = f"screenshots/card_click_failed_{dt_str}.png"
+                page.screenshot(path=err_screenshot, full_page=True)
+                print(f"\n❌ [ERROR] Could not click 'Project Questions' card: {e}")
+                print(f"[DIAGNOSTIC] Screenshot saved to: {err_screenshot}")
+                visible_cards = page.locator('div.cursor-pointer').all_inner_texts()
+                if visible_cards:
+                    print("Available cards detected on page:")
+                    for c in visible_cards[:10]:
+                        print(" -", c.replace('\n', ' ').strip())
+                raise e
+            
             page.wait_for_timeout(500)
         
 

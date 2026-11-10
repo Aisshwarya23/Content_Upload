@@ -8,6 +8,7 @@ venv/
 env/
 ENV/
 .venv/
+env*/
 
 # Playwright / Browser automation
 test-results/
@@ -22,7 +23,7 @@ playwright/.cache/
 *.swp
 *.swo
 
-# Project generated temporary files
+# Project generated temporary files & logs
 upload_log.csv
 run_log.csv
 parsed_questions.json
@@ -36,6 +37,10 @@ questions_review.csv
 *.zip
 *.ods
 *.odt
+
+# Environment / Secrets (local overrides)
+.env.local
+.env.*.local
 
 # OS Generated Files
 Thumbs.db
